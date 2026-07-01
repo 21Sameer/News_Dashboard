@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# News Dashboard (NewsDash)
+
+This is a [Next.js](https://nextjs.org) app that aggregates headlines from many RSS feeds and shows them in a dashboard.
 
 ## Getting Started
 
