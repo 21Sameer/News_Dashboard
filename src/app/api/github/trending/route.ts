@@ -13,7 +13,7 @@ const AI_TOPICS = [
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const cacheKey = 'github_v3:trending';
+  const cacheKey = 'github_v4:trending';
   const cached = getCached<GithubRepo[]>(cacheKey);
 
   if (cached) {
@@ -24,21 +24,32 @@ export async function GET() {
   }
 
   try {
-    // Use GitHub Search API to find recently active, high-impact AI/ML repos
+    // Surface genuinely NEW/rising projects: repos created in the last 90 days
+    // that have already gained traction, sorted by stars. This keeps the list
+    // fresh over time instead of returning the same all-time giants.
     const since = new Date();
-    since.setDate(since.getDate() - 7);
+    since.setDate(since.getDate() - 90);
     const sinceStr = since.toISOString().split('T')[0];
 
-    // Search for deep innovation keywords in AI/ML, recently pushed, with significant stars
-    const query = `llm OR agent OR rag OR transformer OR deep-learning OR machine-learning stars:>1000 pushed:>${sinceStr}`;
+    // NOTE: GitHub Search allows a maximum of 5 AND/OR/NOT operators, so keep to 6 terms.
+    const query = `llm OR agent OR rag OR transformer OR deep-learning OR machine-learning stars:>250 created:>${sinceStr}`;
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'NewsDash-Intelligence-Dashboard',
+    };
+
+    // Use a token if available to lift the strict unauthenticated rate limit
+    // (10 req/min → 5000 req/hr). Optional: set GITHUB_TOKEN in the environment.
+    const token = process.env.GITHUB_TOKEN;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const response = await fetch(
       `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=20`,
       {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'NewsDash-Intelligence-Dashboard',
-        },
+        headers,
         next: { revalidate: 900 },
       }
     );

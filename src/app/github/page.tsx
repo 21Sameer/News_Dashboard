@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useGithubTrending } from '@/hooks/use-feeds';
+import { useGithubTrending, useFeeds } from '@/hooks/use-feeds';
 import { GithubCard } from '@/components/cards/github-card';
-import { SkeletonGithubCard } from '@/components/ui/skeleton-card';
+import { NewsCard } from '@/components/cards/news-card';
+import { SkeletonGithubCard, SkeletonCard } from '@/components/ui/skeleton-card';
 import { getCategoryInfo } from '@/lib/feeds/registry';
 
 const TABS = ['All', 'Python', 'TypeScript', 'Rust', 'Go'];
@@ -11,12 +12,15 @@ const TABS = ['All', 'Python', 'TypeScript', 'Rust', 'Go'];
 export default function GithubPage() {
   const [activeTab, setActiveTab] = useState('All');
   const { data, isLoading } = useGithubTrending();
+  const { data: newsData, isLoading: newsLoading } = useFeeds('github', 30);
   const info = getCategoryInfo('github');
 
   const filteredItems = data?.repos?.filter(repo => {
     if (activeTab === 'All') return true;
     return repo.language === activeTab;
   }) || [];
+
+  const newsItems = newsData?.items || [];
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -32,6 +36,16 @@ export default function GithubPage() {
         </div>
         <p className="text-[14px]" style={{ color: 'var(--text-secondary)' }}>
           {info?.description}
+        </p>
+      </div>
+
+      {/* ── Trending New Repositories ── */}
+      <div className="mb-4">
+        <h2 className="text-[18px] font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Trending New Repositories
+        </h2>
+        <p className="text-[13px] mb-4" style={{ color: 'var(--text-muted)' }}>
+          Fast-rising AI/ML projects created in the last 90 days
         </p>
       </div>
 
@@ -59,10 +73,35 @@ export default function GithubPage() {
           ))
         }
       </div>
-      
+
       {!isLoading && filteredItems.length === 0 && (
-        <div className="py-20 text-center">
+        <div className="py-12 text-center">
           <p style={{ color: 'var(--text-tertiary)' }}>No recent repositories found for this filter.</p>
+        </div>
+      )}
+
+      {/* ── Latest from the Community ── */}
+      <div className="mt-12 mb-4">
+        <h2 className="text-[18px] font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Latest from the Community
+        </h2>
+        <p className="text-[13px] mb-4" style={{ color: 'var(--text-muted)' }}>
+          Fresh posts from GitHub Blog, Hacker News, DEV, Reddit & more
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {newsLoading
+          ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+          : newsItems.map((item, i) => (
+            <NewsCard key={item.id} item={item} index={i} />
+          ))
+        }
+      </div>
+
+      {!newsLoading && newsItems.length === 0 && (
+        <div className="py-12 text-center">
+          <p style={{ color: 'var(--text-tertiary)' }}>No recent community news found.</p>
         </div>
       )}
     </div>
