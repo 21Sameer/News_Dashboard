@@ -287,6 +287,10 @@ export function DailyBriefingModal({ open, onClose }: DailyBriefingModalProps) {
   const refreshBriefing = useRefreshBriefing();
   const [refreshing, setRefreshing] = useState(false);
 
+  // Don't show an empty modal shell. Wait until the briefing has content,
+  // then render the full report automatically.
+  if (open && !data && !error) return null;
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
