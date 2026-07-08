@@ -7,7 +7,7 @@ export function useBriefingData(enabled: boolean) {
   return useQuery<DailyBriefing>({
     queryKey: ['briefing'],
     queryFn: async () => {
-      const res = await fetch(`/api/briefing?t=${Date.now()}`);
+      const res = await fetch(`/api/briefing`);
       if (!res.ok) throw new Error('Failed to load briefing');
       return res.json();
     },

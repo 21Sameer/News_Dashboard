@@ -5,6 +5,7 @@ import { FEED_SOURCES } from '@/lib/feeds/registry';
 import { getAllFeedItems } from '@/lib/feeds/fetch-all-feeds';
 import { getFeedsForModule, isIntelligenceModule } from '@/lib/feeds/module-feeds';
 import { scoreSignificance, deduplicateByUrl, deduplicateByTitle } from '@/lib/utils/relevance-scorer';
+import { extractValidDate, isFresh } from '@/lib/feeds/date-utils';
 import type { NewsItem, Category } from '@/types';
 import Parser from 'rss-parser';
 
@@ -15,6 +16,14 @@ const parser = new Parser({
     'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml',
   },
   maxRedirects: 3,
+  customFields: {
+    item: [
+      ['dc:date', 'dcDate'],
+      ['published', 'published'],
+      ['updated', 'updated'],
+      ['date', 'date'],
+    ],
+  },
 });
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -60,9 +69,10 @@ async function fetchSingleFeed(source: typeof FEED_SOURCES[number]): Promise<New
       const title = rssItem.title?.trim() || '';
       const description = rssItem.contentSnippet?.trim() || rssItem.content?.replace(/<[^>]*>/g, '').trim() || '';
       const url = rssItem.link || '';
-      const publishedAt = rssItem.isoDate || rssItem.pubDate || new Date().toISOString();
 
-      if (!title || !url) continue;
+      // Never fabricate freshness: require a real, verifiable publish date.
+      const publishedAt = extractValidDate(item as Record<string, unknown>);
+      if (!title || !url || !publishedAt || !isFresh(publishedAt)) continue;
 
       const significance = scoreSignificance(title, description, source.category, publishedAt, source.category);
 

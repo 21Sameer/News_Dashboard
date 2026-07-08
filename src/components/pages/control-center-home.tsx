@@ -1,6 +1,7 @@
 'use client';
 
 import { useFeeds, useCryptoMarket } from '@/hooks/use-feeds';
+import { useSettings } from '@/components/providers/settings-provider';
 import { NewsCard } from '@/components/cards/news-card';
 import { FrameworkRadarPanel } from '@/components/ui/framework-radar-panel';
 import { HotTrendsPanel } from '@/components/ui/hot-trends-panel';
@@ -64,6 +65,7 @@ function sortHomeFeed(items: NewsItem[]): NewsItem[] {
 
 export function ControlCenterHome() {
   const { data: globalData, isLoading } = useFeeds(undefined, 50);
+  const { openSettings } = useSettings();
   useCryptoMarket(); // keep market data warm for the header ticker
 
   const items = globalData?.items ?? [];
@@ -104,7 +106,7 @@ export function ControlCenterHome() {
           <div className="panel">
             <div className="panel-header">
               <h3>Top Technology News</h3>
-              <span className="panel-action">Settings</span>
+              <button type="button" className="panel-action" onClick={openSettings}>Settings</button>
             </div>
             <div className="panel-body">
               {isLoading ? (

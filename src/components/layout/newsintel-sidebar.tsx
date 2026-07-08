@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSettings } from '@/components/providers/settings-provider';
+import { SidebarClock } from '@/components/ui/sidebar-clock';
 
 const MODULE_HREFS: Record<string, string> = {
   home: '/',
@@ -57,17 +59,12 @@ function NavItem({ module, children }: { module: string; children: React.ReactNo
 }
 
 export function NewsIntelSidebar() {
+  const { openSettings } = useSettings();
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo" id="sidebar-logo-container">
-          <svg className="anim-radar" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" stroke="#38bdf8" strokeOpacity="0.45" strokeWidth="1.5" />
-            <circle cx="12" cy="12" r="5.5" stroke="#38bdf8" strokeOpacity="0.85" strokeWidth="1.8" />
-            <circle cx="12" cy="12" r="2.2" fill="#38bdf8" stroke="#00f2fe" />
-            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="#38bdf8" strokeWidth="2" />
-            <line x1="12" y1="12" x2="18.5" y2="5.5" stroke="#00f2fe" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <SidebarClock />
         </div>
         <div className="sidebar-brand">
           <h1>NewsDash</h1>
@@ -174,7 +171,7 @@ export function NewsIntelSidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <button type="button" className="sidebar-footer-btn" onClick={() => {}}>
+        <button type="button" className="sidebar-footer-btn" onClick={openSettings}>
           <span>
             <svg className="anim-icon-settings" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
           </span>

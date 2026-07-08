@@ -1,22 +1,48 @@
 import { getCached, setCache } from '@/lib/feeds/cache';
 import { FEED_SOURCES } from '@/lib/feeds/registry';
 import { scoreSignificance, deduplicateByUrl, deduplicateByTitle } from '@/lib/utils/relevance-scorer';
+import { extractValidDate, isFresh } from '@/lib/feeds/date-utils';
 import type { NewsItem, Category } from '@/types';
 import Parser from 'rss-parser';
 
 const parser = new Parser({
-  timeout: 8000,
+  timeout: 6000,
   headers: {
     'User-Agent': 'NewsDash/1.0 Intelligence Dashboard',
     Accept: 'application/rss+xml, application/xml, text/xml, application/atom+xml',
   },
   maxRedirects: 3,
+  customFields: {
+    item: [
+      ['dc:date', 'dcDate'],
+      ['published', 'published'],
+      ['updated', 'updated'],
+      ['date', 'date'],
+    ],
+  },
 });
 
 const CACHE_TTL = 5 * 60 * 1000;
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 8;
 const MAX_ITEMS_PER_FEED = 8;
 const ALL_FEEDS_CACHE_KEY = 'feeds_v5:all';
+const FEED_TIMEOUT_MS = 3500;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
 
 interface RSSItem {
   title?: string;
@@ -29,7 +55,7 @@ interface RSSItem {
 
 async function fetchSingleFeed(source: (typeof FEED_SOURCES)[number]): Promise<NewsItem[]> {
   try {
-    const feed = await parser.parseURL(source.url);
+    const feed = await withTimeout(parser.parseURL(source.url), FEED_TIMEOUT_MS);
     const items: NewsItem[] = [];
 
     for (const item of (feed.items || []).slice(0, MAX_ITEMS_PER_FEED)) {
@@ -40,9 +66,10 @@ async function fetchSingleFeed(source: (typeof FEED_SOURCES)[number]): Promise<N
         rssItem.content?.replace(/<[^>]*>/g, '').trim() ||
         '';
       const url = rssItem.link || '';
-      const publishedAt = rssItem.isoDate || rssItem.pubDate || new Date().toISOString();
 
-      if (!title || !url) continue;
+      // Never fabricate freshness: require a real, verifiable publish date.
+      const publishedAt = extractValidDate(item as Record<string, unknown>);
+      if (!title || !url || !publishedAt || !isFresh(publishedAt)) continue;
 
       const significance = scoreSignificance(
         title,
@@ -87,6 +114,21 @@ async function fetchFeedsBatch(sources: typeof FEED_SOURCES): Promise<NewsItem[]
   return allItems;
 }
 
+async function fetchFeedsUntil(sources: typeof FEED_SOURCES, targetItemCount: number): Promise<NewsItem[]> {
+  const allItems: NewsItem[] = [];
+
+  for (let i = 0; i < sources.length; i += BATCH_SIZE) {
+    const batch = sources.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(batch.map(fetchSingleFeed));
+    for (const result of results) {
+      if (result.status === 'fulfilled') allItems.push(...result.value);
+    }
+    if (allItems.length >= targetItemCount) break;
+  }
+
+  return allItems;
+}
+
 function processItems(items: NewsItem[]): NewsItem[] {
   let processed = deduplicateByUrl(items);
   processed = deduplicateByTitle(processed);
@@ -105,14 +147,27 @@ export async function getAllFeedItems(force = false): Promise<NewsItem[]> {
     if (cached) return cached;
   }
 
-  const allItems = await fetchFeedsBatch(FEED_SOURCES);
-  const processed = processItems(allItems);
+  // Fast bootstrap first (so Daily Briefing doesn't wait minutes),
+  // then refresh a fuller cache in the background.
+  const prioritized = [...FEED_SOURCES].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+  const bootstrapItems = await fetchFeedsUntil(prioritized, 320);
+  const processed = processItems(bootstrapItems);
   setCache(ALL_FEEDS_CACHE_KEY, processed, CACHE_TTL);
 
-  for (const cat of ['ai', 'crypto', 'trading', 'github', 'tech', 'research', 'startups', 'global'] as Category[]) {
-    const catItems = processed.filter((i) => i.category === cat);
-    setCache(`feeds_v5:${cat}`, catItems, CACHE_TTL);
-  }
+  void (async () => {
+    try {
+      const allItems = await fetchFeedsBatch(prioritized);
+      const fullProcessed = processItems(allItems);
+      setCache(ALL_FEEDS_CACHE_KEY, fullProcessed, CACHE_TTL);
+
+      for (const cat of ['ai', 'crypto', 'trading', 'github', 'tech', 'research', 'startups', 'global'] as Category[]) {
+        const catItems = fullProcessed.filter((i) => i.category === cat);
+        setCache(`feeds_v5:${cat}`, catItems, CACHE_TTL);
+      }
+    } catch {
+      // ignore background refresh failures
+    }
+  })();
 
   return processed;
 }

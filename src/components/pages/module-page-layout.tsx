@@ -96,20 +96,106 @@ function FeaturedCard({ item }: { item: NewsItem }) {
   );
 }
 
+// Real-world keyword synonyms so each sub-category tab matches the language
+// actually used in article titles/descriptions (keyed by lowercased label).
+const SUBCATEGORY_SYNONYMS: Record<string, string[]> = {
+  // Technology
+  hardware: ['hardware', 'chip', 'gpu', 'cpu', 'processor', 'device', 'laptop', 'phone', 'silicon', 'apple', 'intel', 'amd'],
+  cloud: ['cloud', 'aws', 'azure', 'gcp', 'kubernetes', 'serverless', 'saas', 'datacenter', 'data center'],
+  robotics: ['robot', 'robotic', 'automation', 'drone', 'humanoid', 'boston dynamics'],
+  quantum: ['quantum', 'qubit', 'superconduct'],
+  space: ['space', 'nasa', 'spacex', 'satellite', 'rocket', 'orbit', 'mars', 'lunar', 'astronaut'],
+  semiconductors: ['semiconductor', 'chip', 'tsmc', 'nvidia', 'wafer', 'fab', 'lithography', 'nm '],
+  // AI
+  models: ['model', 'gpt', 'llm', 'llama', 'gemini', 'claude', 'mistral', 'transformer', 'multimodal'],
+  research: ['research', 'paper', 'study', 'arxiv', 'preprint', 'benchmark', 'findings'],
+  tools: ['tool', 'sdk', 'api', 'framework', 'library', 'plugin', 'app', 'platform'],
+  agents: ['agent', 'agentic', 'autonomous', 'copilot', 'assistant', 'workflow'],
+  infrastructure: ['infrastructure', 'gpu', 'training', 'cluster', 'compute', 'datacenter', 'inference', 'mlops'],
+  // Cybersecurity
+  'breaches & incidents': ['breach', 'hack', 'hacked', 'leak', 'exposed', 'incident', 'data breach', 'compromis', 'stolen'],
+  'vulnerabilities & cves': ['vulnerability', 'vulnerabilities', 'cve', 'flaw', 'patch', 'zero-day', 'zero day', 'exploit', 'bug'],
+  'threat intel': ['threat', 'apt', 'nation-state', 'espionage', 'campaign', 'actor', 'intelligence'],
+  'ransomware & malware': ['ransomware', 'malware', 'trojan', 'botnet', 'phishing', 'spyware', 'worm', 'backdoor'],
+  'security research': ['research', 'disclosure', 'analysis', 'poc', 'reverse', 'bounty', 'security'],
+  // GitHub
+  ai: ['ai', 'ml', 'llm', 'model', 'gpt', 'neural', 'machine learning'],
+  devops: ['devops', 'ci/cd', 'pipeline', 'docker', 'kubernetes', 'terraform', 'deploy', 'automation'],
+  'web dev': ['web', 'javascript', 'typescript', 'react', 'next', 'vue', 'frontend', 'css', 'node'],
+  languages: ['rust', 'python', 'go ', 'golang', 'java', 'c++', 'kotlin', 'swift', 'language', 'compiler'],
+  // Research
+  'academic papers': ['paper', 'arxiv', 'study', 'journal', 'preprint', 'research', 'peer-review'],
+  engineering: ['engineering', 'system', 'design', 'architecture', 'build', 'infrastructure'],
+  'space research': ['space', 'nasa', 'astro', 'cosmo', 'satellite', 'physics', 'telescope'],
+  // Startups
+  'funding rounds': ['funding', 'raise', 'raised', 'seed', 'series a', 'series b', 'series c', 'round', 'million', 'billion', 'investment'],
+  ipos: ['ipo', 'public offering', 'goes public', 'listing', 'debut', 'nasdaq', 'nyse'],
+  'vc activity': ['vc', 'venture', 'investor', 'fund', 'capital', 'backed', 'valuation', 'unicorn'],
+  launches: ['launch', 'unveil', 'debut', 'announce', 'introduces', 'release', 'rollout'],
+  // Crypto
+  bitcoin: ['bitcoin', 'btc', 'satoshi', 'halving'],
+  ethereum: ['ethereum', 'eth', 'vitalik', 'staking', 'layer 2', 'l2'],
+  defi: ['defi', 'yield', 'liquidity', 'protocol', 'dex', 'lending', 'stablecoin'],
+  regulations: ['regulation', 'sec', 'lawsuit', 'legal', 'ban', 'compliance', 'court', 'government'],
+  exchanges: ['exchange', 'binance', 'coinbase', 'kraken', 'listing', 'trading'],
+  // Trading
+  forex: ['forex', 'fx', 'currency', 'dollar', 'euro', 'yen', 'pound', 'usd', 'eur', 'exchange rate'],
+  commodities: ['commodity', 'oil', 'gold', 'silver', 'gas', 'crude', 'metal', 'wheat', 'copper'],
+  etfs: ['etf', 'fund', 'index fund', 'vanguard', 'ishares'],
+  futures: ['futures', 'contract', 'derivative', 'options', 'hedge'],
+  earnings: ['earnings', 'revenue', 'profit', 'quarter', 'results', 'guidance', 'q1', 'q2', 'q3', 'q4'],
+  // Global
+  government: ['government', 'president', 'congress', 'senate', 'policy', 'law', 'minister', 'parliament', 'election'],
+  'economic events': ['economy', 'economic', 'gdp', 'inflation', 'recession', 'growth', 'jobs', 'unemployment', 'rate'],
+  international: ['international', 'global', 'world', 'foreign', 'treaty', 'summit', 'nations', 'diplomatic'],
+  // Cloud & DevOps
+  'cloud providers': ['aws', 'azure', 'gcp', 'google cloud', 'cloudflare', 'oracle cloud', 'cloud'],
+  'devops infrastructure': ['devops', 'kubernetes', 'docker', 'terraform', 'ci/cd', 'pipeline', 'observability', 'infrastructure'],
+  // Forex module
+  'central bank decisions': ['central bank', 'fed', 'ecb', 'boe', 'boj', 'federal reserve', 'rate decision', 'monetary'],
+  'currency markets': ['currency', 'forex', 'fx', 'dollar', 'euro', 'yen', 'pound', 'exchange rate'],
+  'interest rates': ['interest rate', 'rate hike', 'rate cut', 'yield', 'basis points', 'fed', 'monetary'],
+  'inflation reports': ['inflation', 'cpi', 'ppi', 'price index', 'deflation', 'consumer price'],
+  'economic indicators': ['gdp', 'jobs', 'employment', 'pmi', 'retail sales', 'economic', 'data'],
+  // Gold module
+  gold: ['gold', 'bullion', 'xau', 'precious metal'],
+  silver: ['silver', 'xag'],
+  'platinum & palladium': ['platinum', 'palladium', 'pgm'],
+  'mining & supply': ['mining', 'miner', 'supply', 'production', 'reserve', 'ore'],
+  'commodities & energy': ['commodity', 'oil', 'gas', 'energy', 'crude', 'copper', 'metal'],
+  'market analysis': ['analysis', 'outlook', 'forecast', 'price', 'target', 'trend', 'rally', 'selloff'],
+};
+
+// Minimum items to keep a tab from looking sparse/empty.
+const MIN_TAB_ITEMS = 6;
+
 function filterBySubcategory(items: NewsItem[], subcategory: string): NewsItem[] {
   if (subcategory === 'All') return items;
-  const target = subcategory.toLowerCase().replace(/&/g, 'and');
-  const targetSlug = target.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const targetWords = target.split(/[^a-z0-9]+/).filter((w) => w.length > 2);
 
-  return items.filter((item) => {
-    const hay = `${item.subcategory ?? ''} ${item.tags.join(' ')} ${item.title} ${item.source}`
+  const key = subcategory.toLowerCase();
+  const target = key.replace(/&/g, 'and');
+  const targetWords = target.split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+  const synonyms = SUBCATEGORY_SYNONYMS[key] ?? [];
+  const keywords = Array.from(new Set([...synonyms, ...targetWords, target].filter(Boolean)));
+
+  const matches = items.filter((item) => {
+    const hay = `${item.subcategory ?? ''} ${item.tags.join(' ')} ${item.title} ${item.description ?? ''} ${item.source}`
       .toLowerCase()
       .replace(/&/g, 'and');
-    const haySlug = hay.replace(/[^a-z0-9]+/g, '-');
-    if (haySlug.includes(targetSlug) || hay.includes(target)) return true;
-    return targetWords.length > 0 && targetWords.every((w) => hay.includes(w));
+    return keywords.some((k) => hay.includes(k));
   });
+
+  if (matches.length >= MIN_TAB_ITEMS) return matches;
+
+  // Never leave a sub-category empty: pad with the most recent remaining
+  // items (relevant matches stay first) so every tab shows meaningful news.
+  const seen = new Set(matches.map((i) => i.id));
+  const filler = items
+    .filter((i) => !seen.has(i.id))
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .slice(0, MIN_TAB_ITEMS - matches.length);
+
+  return [...matches, ...filler];
 }
 
 export function ModulePageLayout({ config }: { config: ModulePageConfig }) {

@@ -8,6 +8,7 @@ import { NewsIntelTicker } from '@/components/ui/newsintel-ticker';
 import { CommandPalette } from './command-palette';
 import { AIAssistantPanel } from '@/components/ui/ai-assistant-panel';
 import { BriefingProvider, useBriefing } from '@/components/providers/briefing-provider';
+import { SettingsProvider } from '@/components/providers/settings-provider';
 import { CATEGORIES } from '@/lib/feeds/registry';
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
@@ -77,6 +78,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-layout">
+      <div className="app-bg-overlay" aria-hidden="true" />
       <div
         id="mobile-sidebar-overlay"
         className="mobile-sidebar-overlay"
@@ -93,7 +95,11 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
           onMobileMenuToggle={toggleMobileNav}
         />
         <NewsIntelTicker />
-        <section className="content-area">{children}</section>
+        <section className="content-area">
+          <div key={pathname} className="page-fade">
+            {children}
+          </div>
+        </section>
       </main>
 
       <AIAssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
@@ -104,8 +110,10 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
-    <BriefingProvider>
-      <DashboardShellInner>{children}</DashboardShellInner>
-    </BriefingProvider>
+    <SettingsProvider>
+      <BriefingProvider>
+        <DashboardShellInner>{children}</DashboardShellInner>
+      </BriefingProvider>
+    </SettingsProvider>
   );
 }

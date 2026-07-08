@@ -2,10 +2,16 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { NewsItem, CryptoAsset, GithubRepo, ResearchPaper, HackerNewsStory, Category, FeedResponse } from '@/types';
+import { useSettings } from '@/components/providers/settings-provider';
 
 export function useFeeds(category?: Category, limit = 30, module?: string) {
+  const { settings } = useSettings();
+  const isHome = !category && !module;
+  const customSig = isHome ? settings.customSources.map((s) => s.url).join('|') : '';
+  const refetchInterval = settings.refreshInterval > 0 ? settings.refreshInterval : false;
+
   return useQuery<FeedResponse>({
-    queryKey: ['feeds', category, module, limit],
+    queryKey: ['feeds', category, module, limit, customSig],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (module) params.set('module', module);
@@ -13,9 +19,42 @@ export function useFeeds(category?: Category, limit = 30, module?: string) {
       params.set('limit', String(limit));
       const res = await fetch(`/api/feeds?${params}`);
       if (!res.ok) throw new Error('Failed to fetch feeds');
-      return res.json();
+      const data: FeedResponse = await res.json();
+
+      // Blend user-added custom sources into the global (home) feed only.
+      // Capped with an abort so a slow source never stalls the main feed.
+      if (isHome && settings.customSources.length > 0) {
+        try {
+          const controller = new AbortController();
+          const abortTimer = setTimeout(() => controller.abort(), 10000);
+          const customRes = await fetch('/api/custom-feed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sources: settings.customSources }),
+            signal: controller.signal,
+          }).finally(() => clearTimeout(abortTimer));
+          if (customRes.ok) {
+            const customData: { items: NewsItem[] } = await customRes.json();
+            const seen = new Set<string>();
+            const merged = [...(customData.items ?? []), ...data.items].filter((item) => {
+              if (seen.has(item.url)) return false;
+              seen.add(item.url);
+              return true;
+            });
+            merged.sort(
+              (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+            );
+            return { ...data, items: merged, total: merged.length };
+          }
+        } catch {
+          // fall back to base feed on any custom-source failure
+        }
+      }
+
+      return data;
     },
-    staleTime: 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchInterval,
   });
 }
 

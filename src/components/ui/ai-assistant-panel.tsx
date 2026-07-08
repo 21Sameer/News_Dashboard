@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
+import { Bot, Send, Sparkles, X } from 'lucide-react';
 
 const SUGGESTIONS = [
   'Summarize today\'s top AI headlines',
@@ -22,7 +23,14 @@ export function AIAssistantPanel({ open, onClose }: AIAssistantPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'groq' | 'offline' | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
+
+  const hasMessages = messages.length > 0;
+  const wireMessages = useMemo(
+    () => messages.map((m) => ({ role: m.role, content: m.content })),
+    [messages],
+  );
 
   useEffect(() => {
     if (chatRef.current) {
@@ -39,13 +47,15 @@ export function AIAssistantPanel({ open, onClose }: AIAssistantPanelProps) {
     setLoading(true);
 
     try {
+      const outgoing = [...wireMessages, { role: 'user' as const, content: query }];
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: query }] }),
+        body: JSON.stringify({ messages: outgoing }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed');
+      setMode(data.mode ?? null);
       setMessages((prev) => [...prev, { role: 'assistant', content: data.content }]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
@@ -64,14 +74,24 @@ export function AIAssistantPanel({ open, onClose }: AIAssistantPanelProps) {
       />
       <aside className={`ai-assistant-panel ${open ? 'open' : ''}`} aria-hidden={!open}>
         <div className="ai-panel-header">
-          <h3>🤖 AI Assistant</h3>
+          <div className="ai-title">
+            <span className="ai-title-icon" aria-hidden="true">
+              <Bot size={18} />
+            </span>
+            <div className="ai-title-text">
+              <h3>AI Assistant</h3>
+              <span className={`ai-mode${mode === 'offline' ? ' is-offline' : ''}`}>
+                {mode === 'offline' ? 'Offline analyst' : 'Live analyst'}
+              </span>
+            </div>
+          </div>
           <button type="button" className="ai-panel-close" onClick={onClose} aria-label="Close">
-            ✕
+            <X size={18} />
           </button>
         </div>
 
         <div className="ai-chat-area" ref={chatRef}>
-          {messages.length === 0 && (
+          {!hasMessages && (
             <div className="ai-suggestions">
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
                 Ask about news, markets, or technology trends.
@@ -83,18 +103,28 @@ export function AIAssistantPanel({ open, onClose }: AIAssistantPanelProps) {
                   className="ai-suggestion-btn"
                   onClick={() => send(s)}
                 >
+                  <Sparkles size={14} style={{ marginRight: 8 }} />
                   {s}
                 </button>
               ))}
+              <div className="ai-setup-hint">
+                If you see “GROQ_API_KEY is not set”, add it to your `.env.local` and restart the dev server.
+              </div>
             </div>
           )}
           {messages.map((m, i) => (
-            <div key={i} className={`chat-message ${m.role}`}>
+            <div key={i} className={`chat-message ${m.role} chat-anim-in`}>
               {m.content}
             </div>
           ))}
           {loading && (
-            <div className="chat-message assistant">Thinking…</div>
+            <div className="chat-message assistant chat-anim-in" aria-label="Assistant is thinking">
+              <span className="typing-indicator" aria-hidden="true">
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+              </span>
+            </div>
           )}
         </div>
 
@@ -114,7 +144,7 @@ export function AIAssistantPanel({ open, onClose }: AIAssistantPanelProps) {
             disabled={loading || !input.trim()}
             aria-label="Send"
           >
-            ➔
+            <Send size={16} />
           </button>
         </div>
       </aside>

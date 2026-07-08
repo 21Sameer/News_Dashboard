@@ -29,7 +29,8 @@ function parseArxivXml(xml: string): ResearchPaper[] {
     };
     const getPublished = (s: string) => {
       const m = s.match(/<published>(.*?)<\/published>/);
-      return m ? m[1].trim() : new Date().toISOString();
+      // Never fabricate freshness: undated papers sink to the bottom.
+      return m ? m[1].trim() : new Date(0).toISOString();
     };
     const getUpdated = (s: string) => {
       const m = s.match(/<updated>(.*?)<\/updated>/);
